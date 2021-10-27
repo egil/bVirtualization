@@ -4,10 +4,12 @@
 // See License.txt in the project root for license information.
 // ---------------------------------------------------------------
 
-using Bunit;
+using Microsoft.AspNetCore.Components;
 
 namespace bVirtualization.Tests.Unit.Views.Components.BVirtualizations
 {
-    public partial class BVirtualizationComponentTests : TestContext
-    { }
+    public class Tmpl<T> : ComponentBase
+    {
+        [Parameter] public T? Data { get; set; }
+    }
 }

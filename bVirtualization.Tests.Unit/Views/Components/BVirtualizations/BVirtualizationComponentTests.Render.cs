@@ -5,6 +5,7 @@
 // ---------------------------------------------------------------
 
 using System.Linq;
+using AutoFixture.Xunit2;
 using Bunit;
 using bVirtualization.Models.BVirutalizationComponents;
 using bVirtualization.Views.Components;
@@ -14,7 +15,7 @@ using Xunit;
 
 namespace bVirtualization.Tests.Unit.Views.Components.BVirtualizations
 {
-    public partial class BVirtualizationComponentTests
+    public partial class BVirtualizationComponentTests : TestContext
     {
         [Fact]
         public void ShouldInitializeComponent()
@@ -35,62 +36,57 @@ namespace bVirtualization.Tests.Unit.Views.Components.BVirtualizations
             initialBVirtualizationComponent.ErrorMessage.Should().BeNull();
         }
 
-        [Fact]
-        public void ShouldRenderContent()
+        [Theory, AutoData]
+        public void ShouldSetParameters(object[] randomData)
         {
             // given
-            BVirutalizationComponentState expectedState =
-                BVirutalizationComponentState.Content;
+            IQueryable<object> inputDataSource = randomData.AsQueryable();
 
-            IQueryable<object> randomData =
-                CreateRandomQueryable();
+            IQueryable<object> expectedDataSource = inputDataSource;
 
-            IQueryable<object> inputDataSource =
-                randomData;
+            RenderFragment<object> inputChildContent = val => builder => { };
 
-            IQueryable<object> expectedDataSource =
-                inputDataSource;
-
-            RenderFragment<object> inputChildContent =
-                CreateRenderFragment(typeof(SomeComponent<object>));
-
-            RenderFragment<object> expectedChildContent =
-                inputChildContent;
-
-            var componentParameters = new ComponentParameter[]
-            {
-                ComponentParameter.CreateParameter(
-                    nameof(BVirtualizationComponent<object>.ChildContent),
-                    inputChildContent),
-
-                ComponentParameter.CreateParameter(
-                    nameof(BVirtualizationComponent<object>.DataSource),
-                    inputDataSource)
-            };
+            RenderFragment<object> expectedChildContent = inputChildContent;
 
             // when
-            this.renderedComponent =
-                RenderComponent<BVirtualizationComponent<object>>(componentParameters);
+            var cut = RenderComponent<BVirtualizationComponent<object>>(parameters => parameters
+                .Add(p => p.DataSource, inputDataSource)
+                .Add(p => p.ChildContent, inputChildContent));
 
             // then
-            this.renderedComponent.Instance.State
-                .Should().Be(expectedState);
+            cut.Instance.DataSource.Should().BeSameAs(expectedDataSource);
+            cut.Instance.ChildContent.Should().Be(expectedChildContent);
+        }
 
-            this.renderedComponent.Instance.ChildContent
-                .Should().BeEquivalentTo(expectedChildContent);
+        [Theory, AutoData]
+        public void ShouldRenderContent(object[] inputDataSource)
+        {
+            // when
+            var cut = RenderComponent<BVirtualizationComponent<object>>(parameters => parameters
+                .Add(p => p.DataSource, inputDataSource.AsQueryable())
+                .Add(p => p.ChildContent, obj => $"<p>{obj}</p>"));
 
-            this.renderedComponent.Instance.DataSource.Should()
-                .BeEquivalentTo(expectedDataSource);
+            // then
+            cut.FindAll("p").Count.Should().Be(inputDataSource.Count());
+        }
 
-            this.renderedComponent.FindComponents<SomeComponent<object>>()
-                .Count().Should().Be(expectedDataSource.Count());
+        [Theory, AutoData]
+        public void ShouldPassDataToChildContentTemplate(string[] inputDataSource)
+        {
+            // when
+            var cut = RenderComponent<BVirtualizationComponent<string>>(parameters => parameters
+                .Add(p => p.DataSource, inputDataSource.AsQueryable())
+                .Add<Tmpl<string>, string>(p => p.ChildContent, data => paraParams => paraParams.Add(p => p.Data, data)));
 
-            this.renderedComponent.Instance.ErrorMessage.Should().BeNull();
-            this.renderedComponent.Instance.Label.Should().BeNull();
+            // then
+            cut.FindComponents<Tmpl<string>>()
+                .Select(x => x.Instance.Data)
+                .Should()
+                .BeEquivalentTo(inputDataSource);
         }
 
         [Fact]
-        public void ShouldRenderErrorWhenExceptionOccurs()
+        public void ShouldRenderErrorWhenNullDataSource()
         {
             // given
             BVirutalizationComponentState expectedState =
@@ -99,31 +95,15 @@ namespace bVirtualization.Tests.Unit.Views.Components.BVirtualizations
             string expectedErrorMessage =
                 "Virtualization service error ocurred, contact support.";
 
-            IQueryable<object> someData = null;
-
-            RenderFragment<object> someChildContent =
-                CreateRenderFragment(typeof(SomeComponent<object>));
-
-            var componentParameters = new ComponentParameter[]
-            {
-                ComponentParameter.CreateParameter(
-                    nameof(BVirtualizationComponent<object>.ChildContent),
-                    someChildContent),
-
-                ComponentParameter.CreateParameter(
-                    nameof(BVirtualizationComponent<object>.DataSource),
-                    someData)
-            };
-
             // when
-            this.renderedComponent =
-                RenderComponent<BVirtualizationComponent<object>>(componentParameters);
+            var cut = RenderComponent<BVirtualizationComponent<object>>(parameters => parameters
+                .Add(p => p.DataSource, null));
 
             // then
-            this.renderedComponent.Instance.State.Should().Be(expectedState);
-            this.renderedComponent.Instance.ErrorMessage.Should().Be(expectedErrorMessage);
-            this.renderedComponent.Instance.Label.Should().NotBeNull();
-            this.renderedComponent.Instance.Label.Value.Should().Be(expectedErrorMessage);
+            cut.Instance.State.Should().Be(expectedState);
+            cut.Instance.ErrorMessage.Should().Be(expectedErrorMessage);
+            cut.Instance.Label.Should().NotBeNull();
+            cut.Instance.Label.Value.Should().Be(expectedErrorMessage);
         }
     }
 }
