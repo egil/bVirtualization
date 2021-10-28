@@ -22,12 +22,11 @@ namespace bVirtualization.Views.Base
         [Parameter]
         public CallBackSourceDelegate<T> CallBackSource { get; set; }
 
-        private async ValueTask<ItemsProviderResult<T>> GetItemsAsync(
+        private ValueTask<ItemsProviderResult<T>> GetItemsAsync(
             ItemsProviderRequest request)
         {
             var data = CallBackSource.Invoke(request.StartIndex, request.Count);
-
-            return new ItemsProviderResult<T>(data.DataSource, data.TotalCount);
+            return ValueTask.FromResult(new ItemsProviderResult<T>(data.DataSource, data.TotalCount));
         }
     }
 
